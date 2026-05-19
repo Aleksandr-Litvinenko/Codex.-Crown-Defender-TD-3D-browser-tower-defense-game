@@ -4,11 +4,6 @@
 
 The project is designed to run without a backend. Open it locally, serve it as static files, or publish it through GitHub Pages.
 
-## Current Repository Name
-
-Target GitHub repository:
-
-`Codex.-Crown-Defender-TD-3D-browser-tower-defense-game`
 
 ## Gameplay
 
