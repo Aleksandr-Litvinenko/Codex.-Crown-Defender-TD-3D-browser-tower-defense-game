@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#111924">
+    <title>Crown Defender TD</title>
+    <link rel="stylesheet" href="styles.css?v=textures-v2">
+  </head>
+  <body>
+    <main class="game-shell" id="gameShell">
+      <canvas id="gameCanvas" aria-label="Crown Defender TD"></canvas>
+
+      <section class="hud" id="hud" aria-label="Статус игры">
+        <div class="hud-zone hud-left">
+          <div class="hud-card wave-card">
+            <span class="hud-label">Волна</span>
+            <strong id="waveText">1/30</strong>
+          </div>
+          <div class="meter-card castle-card" id="castleCard">
+            <div class="meter-row">
+              <span class="hud-label">Замок</span>
+              <div class="meter">
+                <span id="castleMeter"></span>
+              </div>
+              <strong id="castleText">100%</strong>
+            </div>
+            <div class="xp-row">
+              <span class="hud-label">Опыт</span>
+              <div class="meter xp-meter">
+                <span id="xpMeter"></span>
+              </div>
+              <strong id="xpText">Ур. 1</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud-zone hud-right">
+          <div class="meter-card hero-card" id="heroCard">
+            <div class="meter-row">
+              <span class="hud-label">Герой</span>
+              <div class="meter hero-meter">
+                <span id="heroMeter"></span>
+              </div>
+              <strong id="heroText">100%</strong>
+            </div>
+            <div class="hero-level-row">
+              <span class="hud-label">Уровень</span>
+              <strong id="heroLevelText">1</strong>
+            </div>
+          </div>
+          <div class="hud-card score-card">
+            <span class="hud-label">Счет</span>
+            <strong id="scoreText">0</strong>
+          </div>
+          <div class="hud-card compact enemy-card">
+            <span class="hud-label">Враги</span>
+            <strong id="enemyText">0</strong>
+          </div>
+        </div>
+      </section>
+
+      <button class="pause-button" id="pauseButton" aria-label="Пауза">II</button>
+      <aside class="upgrade-summary" id="upgradeSummary" aria-label="Полученные улучшения"></aside>
+      <div class="world-message" id="worldMessage" aria-live="polite"></div>
+
+      <section class="controls" id="controls" aria-label="Управление">
+        <div class="joystick" id="joystick" aria-label="Движение">
+          <div class="joystick-ring"></div>
+          <div class="joystick-stick" id="joystickStick"></div>
+        </div>
+
+        <div class="actions">
+          <button class="skill-button" data-ability="guard" id="guardButton" aria-label="Щит замка">
+            <span class="button-glyph">◆</span>
+            <span class="button-key">'</span>
+            <small id="guardCooldown"></small>
+          </button>
+          <button class="skill-button" data-ability="blast" id="blastButton" aria-label="Круговой удар">
+            <span class="button-glyph" id="blastLabel">✦</span>
+            <span class="button-key">]</span>
+            <small id="blastCooldown"></small>
+          </button>
+          <button class="skill-button" data-ability="dash" id="dashButton" aria-label="Рывок">
+            <span class="button-glyph">↟</span>
+            <span class="button-key">[</span>
+            <small id="dashCooldown"></small>
+          </button>
+          <button class="attack-button" id="attackButton" aria-label="Атака">
+            <span class="button-glyph">⚔</span>
+            <span class="button-key">;</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="overlay" id="startOverlay">
+        <div class="panel start-panel">
+          <p class="eyebrow">Action TD</p>
+          <h1>Crown Defender TD</h1>
+          <div class="record-grid">
+            <div>
+              <span>Рекорд</span>
+              <strong id="bestScoreText">0</strong>
+            </div>
+            <div>
+              <span>Лучший уровень</span>
+              <strong id="bestLevelText">0/30</strong>
+            </div>
+          </div>
+          <div class="crown-row">
+            <div>
+              <span id="crownStatus">Корона закрыта</span>
+              <strong id="crownHint">Победа на 30 волне</strong>
+            </div>
+            <button class="toggle-button" id="crownToggle" aria-pressed="false" disabled>Снять</button>
+          </div>
+          <div class="menu-actions">
+            <button class="primary-button" id="playButton">Играть</button>
+            <button class="secondary-button" id="continueButton">Продолжить</button>
+          </div>
+          <button class="ghost-button" id="resetProgressButton">Сбросить сохранения</button>
+        </div>
+      </section>
+
+      <section class="overlay hidden" id="resultOverlay">
+        <div class="panel result-panel">
+          <p class="eyebrow" id="resultKicker">Итог</p>
+          <h2 id="resultTitle">Победа</h2>
+          <div class="record-grid">
+            <div>
+              <span>Счет</span>
+              <strong id="finalScoreText">0</strong>
+            </div>
+            <div>
+              <span>Уровень</span>
+              <strong id="finalLevelText">1/30</strong>
+            </div>
+          </div>
+          <p class="result-note" id="resultNote"></p>
+          <div class="menu-actions">
+            <button class="primary-button" id="restartButton">Снова</button>
+            <button class="secondary-button" id="menuButton">Меню</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="overlay hidden upgrade-overlay" id="upgradeOverlay">
+        <div class="panel upgrade-panel">
+          <div class="upgrade-top">
+            <div>
+              <p class="eyebrow">Новый уровень</p>
+              <h2>Выбери усиление</h2>
+            </div>
+            <button class="reroll-button" id="rerollButton">Перебросить</button>
+          </div>
+          <div class="upgrade-options" id="upgradeOptions"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="vendor/three.min.js"></script>
+    <script src="game.js?v=textures-v2"></script>
+  </body>
+</html>

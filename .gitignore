@@ -1,0 +1,18 @@
+.DS_Store
+
+# Local browser/debug output
+debug/
+
+# Raw downloaded and extracted source assets are not needed at runtime.
+assets/source_textures/
+
+# Previous generated texture pack. The game currently uses assets/textures/v2.
+assets/textures/*.png
+!assets/textures/v2/
+!assets/textures/v2/**
+
+# Local server and editor noise
+.vscode/
+.idea/
+*.log
+*.tmp
