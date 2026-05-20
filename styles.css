@@ -16,6 +16,9 @@
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 html,
@@ -27,7 +30,6 @@ body {
   background: #0e1621;
   color: var(--ink);
   touch-action: none;
-  user-select: none;
 }
 
 button {
@@ -57,7 +59,7 @@ button {
   position: absolute;
   top: max(12px, env(safe-area-inset-top));
   left: max(12px, env(safe-area-inset-left));
-  right: calc(max(12px, env(safe-area-inset-right)) + 58px);
+  right: calc(max(12px, env(safe-area-inset-right)) + 112px);
   z-index: 4;
   display: flex;
   justify-content: space-between;
@@ -245,11 +247,18 @@ body.danger-castle .game-shell::after {
   }
 }
 
-.pause-button {
+.top-actions {
   position: absolute;
   top: max(12px, env(safe-area-inset-top));
   right: max(12px, env(safe-area-inset-right));
   z-index: 5;
+  display: grid;
+  grid-auto-flow: column;
+  gap: 8px;
+}
+
+.pause-button,
+.speed-button {
   width: 48px;
   height: 48px;
   border: 1px solid var(--line);
@@ -260,6 +269,18 @@ body.danger-castle .game-shell::after {
   font-weight: 900;
   cursor: pointer;
   backdrop-filter: blur(14px);
+  touch-action: manipulation;
+}
+
+.speed-button {
+  color: #f3be4d;
+  font-size: 13px;
+}
+
+.speed-button.active {
+  border-color: rgba(243, 190, 77, 0.74);
+  background: radial-gradient(circle at 38% 28%, rgba(255, 240, 180, 0.28), rgba(55, 37, 13, 0.86));
+  box-shadow: 0 10px 28px var(--shadow), 0 0 18px rgba(243, 190, 77, 0.22);
 }
 
 .world-message {
@@ -429,6 +450,9 @@ body.upgrade .upgrade-summary .upgrade-pill span {
   touch-action: none;
   overflow: hidden;
   --cooldown: 0;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .attack-button::before,
@@ -499,11 +523,123 @@ body.upgrade .upgrade-summary .upgrade-pill span {
   display: grid;
 }
 
-.button-glyph {
+.button-icon {
   position: relative;
   z-index: 2;
-  line-height: 1;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.42);
+  width: 48%;
+  aspect-ratio: 1;
+  display: block;
+  pointer-events: none;
+}
+
+.button-icon::before,
+.button-icon::after {
+  content: "";
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
+.icon-attack::before,
+.icon-attack::after {
+  left: 46%;
+  top: 6%;
+  width: 12%;
+  height: 90%;
+  border-radius: 999px;
+  background: linear-gradient(#fff7c8 0 18%, #34231d 18% 28%, #f3f0df 28% 82%, #9d263d 82%);
+  box-shadow: 0 0 12px rgba(255, 235, 154, 0.42);
+  transform-origin: 50% 82%;
+}
+
+.icon-attack::before {
+  transform: rotate(42deg);
+}
+
+.icon-attack::after {
+  transform: rotate(-42deg);
+}
+
+.icon-dash::before {
+  left: 18%;
+  top: 14%;
+  width: 64%;
+  height: 64%;
+  border-top: 8px solid #efffff;
+  border-right: 8px solid #efffff;
+  transform: rotate(45deg);
+  filter: drop-shadow(0 0 8px rgba(86, 216, 220, 0.72));
+}
+
+.icon-dash::after {
+  left: 8%;
+  top: 47%;
+  width: 62%;
+  height: 8px;
+  border-radius: 999px;
+  background: #efffff;
+  filter: drop-shadow(0 0 8px rgba(86, 216, 220, 0.72));
+}
+
+.icon-guard::before {
+  left: 17%;
+  top: 6%;
+  width: 66%;
+  height: 82%;
+  clip-path: polygon(50% 0, 88% 14%, 82% 58%, 50% 100%, 18% 58%, 12% 14%);
+  background: linear-gradient(145deg, #fff4ba, #f3be4d 48%, #734711);
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.22), 0 0 12px rgba(243, 190, 77, 0.38);
+}
+
+.icon-guard::after {
+  left: 45%;
+  top: 20%;
+  width: 10%;
+  height: 54%;
+  border-radius: 999px;
+  background: rgba(73, 42, 6, 0.56);
+}
+
+.icon-blast::before,
+.icon-meteor::before,
+.icon-fire::before,
+.icon-ice::before {
+  inset: 14%;
+}
+
+.icon-blast::before {
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, #ffffff 0 20%, transparent 21%),
+    conic-gradient(from 0deg, transparent 0 10%, #ffffff 11% 17%, transparent 18% 35%, #d8ceff 36% 43%, transparent 44% 62%, #ffffff 63% 70%, transparent 71%);
+  filter: drop-shadow(0 0 10px rgba(166, 140, 247, 0.9));
+}
+
+.icon-meteor::before {
+  border-radius: 50%;
+  background: radial-gradient(circle at 64% 62%, #ffefb0 0 18%, #ff7a2f 19% 44%, #4a1b14 45% 100%);
+  box-shadow: -10px -10px 0 -4px rgba(255, 194, 92, 0.88), -18px -18px 0 -9px rgba(255, 101, 35, 0.56);
+}
+
+.icon-fire::before {
+  left: 20%;
+  top: 4%;
+  width: 58%;
+  height: 86%;
+  border-radius: 64% 36% 60% 40%;
+  background: radial-gradient(circle at 52% 68%, #fff2a8 0 17%, #ffb04b 18% 42%, #ec4f1e 43% 100%);
+  transform: rotate(12deg);
+  filter: drop-shadow(0 0 10px rgba(255, 98, 32, 0.72));
+}
+
+.icon-ice::before {
+  left: 21%;
+  top: 5%;
+  width: 58%;
+  height: 86%;
+  clip-path: polygon(50% 0, 66% 33%, 100% 50%, 66% 67%, 50% 100%, 34% 67%, 0 50%, 34% 33%);
+  background: linear-gradient(160deg, #ffffff, #8cecff 50%, #316fca);
+  filter: drop-shadow(0 0 9px rgba(140, 236, 255, 0.82));
 }
 
 .button-key {
@@ -520,11 +656,13 @@ body.upgrade .upgrade-summary .upgrade-pill span {
   color: rgba(255, 255, 255, 0.86);
   font-size: clamp(10px, 1.3vw, 13px);
   font-weight: 950;
+  pointer-events: none;
 }
 
 .attack-button:active,
 .skill-button:active,
 .pause-button:active,
+.speed-button:active,
 .primary-button:active,
 .secondary-button:active,
 .toggle-button:active {
@@ -759,16 +897,16 @@ h2 {
 
 body.menu .hud,
 body.menu .controls,
-body.menu .pause-button,
+body.menu .top-actions,
 body.menu .upgrade-summary,
 body.menu .world-message,
 body.result .hud,
 body.result .controls,
-body.result .pause-button,
+body.result .top-actions,
 body.result .upgrade-summary,
 body.result .world-message,
 body.upgrade .controls,
-body.upgrade .pause-button {
+body.upgrade .top-actions {
   opacity: 0;
   pointer-events: none;
 }
@@ -779,7 +917,7 @@ body.paused .controls {
 
 @media (max-width: 900px) {
   .hud {
-    right: calc(max(10px, env(safe-area-inset-right)) + 48px);
+    right: calc(max(10px, env(safe-area-inset-right)) + 96px);
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: 6px;
@@ -850,7 +988,13 @@ body.paused .controls {
     font-size: 15px;
   }
 
-  .pause-button {
+  .top-actions {
+    top: 8px;
+    right: 8px;
+  }
+
+  .pause-button,
+  .speed-button {
     width: 42px;
     height: 42px;
   }

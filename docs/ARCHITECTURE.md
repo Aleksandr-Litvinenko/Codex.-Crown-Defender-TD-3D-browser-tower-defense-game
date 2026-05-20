@@ -27,6 +27,7 @@ The arena is built from Three.js primitives and textured materials:
 - grass floor;
 - blended stone road;
 - castle with towers, roofs, windows, and runes;
+- right-side magic portal used as the enemy spawn point;
 - trees, stones, torches, and dynamic point lights.
 
 Most geometry is intentionally procedural so the game can remain a small static project without a model-loading pipeline.
@@ -52,6 +53,8 @@ Weapon style is determined by selected upgrades:
 Enemy types are defined in `enemyTypes` inside `game.js`. Each type has health, speed, damage, radius, score value, armor, and experience reward.
 
 The current enemy model system uses procedural mesh construction with different silhouettes and textures per enemy family.
+
+Bosses appear on waves 10, 20, and 30. Each new boss tier scales health, damage, armor, size, attack cadence, reward value, and special pressure so the later bosses are materially harder than the previous boss.
 
 ### Combat
 
@@ -87,6 +90,18 @@ Persisted data:
 - high score;
 - best reached wave;
 - current run snapshot.
+
+### Performance
+
+The current MVP keeps performance predictable by:
+
+- capping renderer pixel ratio lower than native high-DPI screens;
+- disabling preserve-drawing-buffer;
+- using a cheaper shadow map;
+- reducing non-critical prop density;
+- limiting dynamic point lights;
+- throttling HUD DOM refreshes;
+- caching the upgrade summary HTML until upgrade state changes.
 
 ## Design Constraints
 

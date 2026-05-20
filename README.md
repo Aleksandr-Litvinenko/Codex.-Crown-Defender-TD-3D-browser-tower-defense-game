@@ -10,6 +10,7 @@ The project is designed to run without a backend. Open it locally, serve it as s
 - One mode: `TD Defense`.
 - The hero moves freely on a 3D arena with an isometric MOBA-style camera.
 - Creeps spawn in waves and move toward the castle.
+- Creeps enter through a magic portal on the right side of the arena.
 - The player wins after clearing wave 30.
 - The player loses when the castle health reaches zero.
 - Enemies grant experience. Stronger enemies grant more experience.
@@ -38,6 +39,7 @@ The project is designed to run without a backend. Open it locally, serve it as s
   - shield;
   - boss.
 - Mobile HUD with joystick and ability buttons.
+- Toggleable `x2` game speed.
 - Desktop controls for laptop play.
 - Local browser save through `localStorage`.
 - Best score, best wave, crown unlock, crown equipped state, and current run progress are persisted.
@@ -53,6 +55,7 @@ The project is designed to run without a backend. Open it locally, serve it as s
 | Dash | `[` |
 | Elemental / area skill | `]` |
 | Guard | `'` |
+| Toggle x2 speed | speed button or `X` |
 | Pause | pause button in HUD |
 
 ### Mobile / Touch
@@ -130,6 +133,7 @@ The repository intentionally excludes source texture archives, extracted raw sou
 - Input: pointer/touch joystick, mobile buttons, and keyboard controls.
 - Persistence: `localStorage`.
 - Build step: none.
+- Performance budget: capped render pixel ratio, reduced shadow cost, throttled HUD updates, and runtime-only asset pack.
 
 More detail is available in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -158,6 +162,8 @@ Then verify the game in a browser:
 - the scene renders;
 - the hero moves with keyboard and joystick;
 - attacks and abilities trigger;
+- x2 speed button toggles the match speed;
+- enemies spawn from the right portal;
 - waves spawn and progress;
 - upgrade choices appear after level-up;
 - save/continue works after refresh;

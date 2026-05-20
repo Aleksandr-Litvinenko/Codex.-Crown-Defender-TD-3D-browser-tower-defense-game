@@ -12,6 +12,7 @@
     menuButton: document.getElementById("menuButton"),
     resetProgressButton: document.getElementById("resetProgressButton"),
     pauseButton: document.getElementById("pauseButton"),
+    speedButton: document.getElementById("speedButton"),
     worldMessage: document.getElementById("worldMessage"),
     crownToggle: document.getElementById("crownToggle"),
     crownStatus: document.getElementById("crownStatus"),
@@ -78,6 +79,7 @@
 
   const CASTLE_POS = new THREE.Vector3(-40, 0, 0);
   const HERO_START = new THREE.Vector3(-27, 0, 0);
+  const PORTAL_POS = new THREE.Vector3(WORLD.maxX - 4.8, 0, 0);
   const CAMERA_OFFSET = new THREE.Vector3(0, 31, 27);
   const cameraFocus = new THREE.Vector3(-23, 0, 0);
   const desiredFocus = new THREE.Vector3();
@@ -239,9 +241,9 @@
 
   const renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: true,
+    antialias: (window.devicePixelRatio || 1) <= 1.4,
     alpha: false,
-    preserveDrawingBuffer: true,
+    preserveDrawingBuffer: false,
     powerPreference: "high-performance",
   });
   renderer.setClearColor(0x101924, 1);
@@ -249,7 +251,7 @@
   renderer.toneMapping = THREE.ReinhardToneMapping;
   renderer.toneMappingExposure = 0.66;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x14202b);
@@ -271,6 +273,7 @@
     heroCrown: null,
     castle: null,
     castleShield: null,
+    portal: null,
     torches: [],
   };
 
@@ -334,7 +337,7 @@
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(repeatX, repeatY);
-    texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy?.() || 4);
+    texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy?.() || 4);
     texture.encoding = colorTexture ? THREE.sRGBEncoding : THREE.LinearEncoding;
     return texture;
   }
@@ -358,6 +361,9 @@
       screen: "start",
       level: 1,
       score: 0,
+      timeScale: 1,
+      hudTimer: 0,
+      upgradeSummaryKey: "",
       enemies: [],
       projectiles: [],
       effects: [],
@@ -433,8 +439,8 @@
     const sun = new THREE.DirectionalLight(0xfff2cf, 0.82);
     sun.position.set(-18, 34, 18);
     sun.castShadow = true;
-    sun.shadow.mapSize.width = 1024;
-    sun.shadow.mapSize.height = 1024;
+    sun.shadow.mapSize.width = 512;
+    sun.shadow.mapSize.height = 512;
     sun.shadow.camera.left = -58;
     sun.shadow.camera.right = 58;
     sun.shadow.camera.top = 42;
@@ -447,6 +453,9 @@
 
     addGround();
     addMapDecor();
+    models.portal = createPortalModel();
+    models.portal.position.copy(PORTAL_POS);
+    scene.add(models.portal);
     models.castle = createCastleModel();
     models.castle.position.copy(game.castle.pos);
     scene.add(models.castle);
@@ -540,7 +549,7 @@
       new THREE.MeshBasicMaterial({ color: 0x3e5b37, map: textures.grass, transparent: true, opacity: 0.12, depthWrite: false }),
       new THREE.MeshBasicMaterial({ color: 0x66503a, map: textures.grass, transparent: true, opacity: 0.05, depthWrite: false }),
     ];
-    for (let i = 0; i < 76; i += 1) {
+    for (let i = 0; i < 44; i += 1) {
       const nearEdge = i % 3 !== 0;
       const zBase = nearEdge ? (i % 2 ? -8.7 : 8.7) : randomRange(-5.6, 5.6);
       const patch = new THREE.Mesh(new THREE.PlaneGeometry(2.1 + (i % 5) * 0.55, 0.75 + (i % 4) * 0.25), patchMats[i % patchMats.length]);
@@ -559,7 +568,7 @@
       new THREE.MeshStandardMaterial({ color: 0x2f654d, map: textures.leaves, roughness: 0.9 }),
     ];
 
-    for (let i = 0; i < 38; i += 1) {
+    for (let i = 0; i < 28; i += 1) {
       const x = WORLD.minX + 4 + ((i * 17) % Math.floor(WORLD.maxX - WORLD.minX - 8));
       const side = i % 2 === 0 ? -1 : 1;
       const z = side * (14 + ((i * 7) % 12));
@@ -581,7 +590,7 @@
     }
 
     const torchPositions = [];
-    for (const x of [-36, -24, -12, 0, 12, 24, 36]) {
+    for (const x of [-36, -18, 0, 18, 36]) {
       torchPositions.push([x, WORLD.laneMinZ - 1.35], [x, WORLD.laneMaxZ + 1.35]);
     }
     torchPositions.push(
@@ -606,7 +615,7 @@
     }
 
     const stoneMat = new THREE.MeshStandardMaterial({ color: 0xb8bab2, map: textures.rocks, roughness: 0.95 });
-    for (let i = 0; i < 22; i += 1) {
+    for (let i = 0; i < 16; i += 1) {
       const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(0.28 + (i % 4) * 0.11, 0), stoneMat);
       const side = i % 2 === 0 ? -1 : 1;
       stone.position.set(WORLD.minX + 8 + ((i * 11) % 88), 0.25, side * (11.8 + ((i * 5) % 14)));
@@ -657,13 +666,86 @@
     glow.position.y = 2.22;
     group.add(glow);
 
-    const light = new THREE.PointLight(0xff8a32, 1.28, 12, 1.65);
-    light.position.set(0, 2.25, 0);
-    group.add(light);
+    const light = seed % 2 === 0 ? new THREE.PointLight(0xff8a32, 1.12, 10, 1.7) : null;
+    if (light) {
+      light.position.set(0, 2.25, 0);
+      group.add(light);
+    }
 
     group.position.set(x, 0, z);
     group.userData.torch = { flame, glow, light, seed };
     models.torches.push(group.userData.torch);
+    return group;
+  }
+
+  function createPortalModel() {
+    const group = new THREE.Group();
+    const stoneMat = new THREE.MeshStandardMaterial({
+      color: 0xb8b4aa,
+      map: textures.castleStone,
+      normalMap: textures.castleNormal,
+      normalScale: new THREE.Vector2(0.18, 0.18),
+      roughness: 0.9,
+    });
+    const runeMat = new THREE.MeshStandardMaterial({
+      color: 0x8cecff,
+      map: textures.castleRunes,
+      emissive: 0x1d8bb0,
+      emissiveIntensity: 0.72,
+      roughness: 0.42,
+    });
+    const energyMat = new THREE.MeshBasicMaterial({
+      color: 0x8f63ff,
+      transparent: true,
+      opacity: 0.5,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const coreMat = energyMat.clone();
+    coreMat.color.setHex(0x62e6ff);
+    coreMat.opacity = 0.28;
+
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(2.9, 3.25, 0.52, 18), stoneMat);
+    base.position.y = 0.24;
+    base.castShadow = true;
+    base.receiveShadow = true;
+    group.add(base);
+
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(2.25, 0.24, 12, 36), stoneMat);
+    ring.position.y = 2.55;
+    ring.rotation.y = Math.PI / 2;
+    ring.castShadow = true;
+    group.add(ring);
+
+    const innerRing = new THREE.Mesh(new THREE.TorusGeometry(1.72, 0.045, 8, 32), runeMat);
+    innerRing.position.y = 2.55;
+    innerRing.rotation.y = Math.PI / 2;
+    group.add(innerRing);
+
+    const core = new THREE.Mesh(new THREE.CircleGeometry(1.68, 36), coreMat);
+    core.position.y = 2.55;
+    core.rotation.y = Math.PI / 2;
+    group.add(core);
+
+    const swirl = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.055, 8, 30, Math.PI * 1.45), energyMat);
+    swirl.position.y = 2.55;
+    swirl.rotation.y = Math.PI / 2;
+    group.add(swirl);
+
+    for (let i = 0; i < 7; i += 1) {
+      const rune = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.38, 0.24), runeMat);
+      const angle = (i / 7) * Math.PI * 2;
+      rune.position.set(0, 2.55 + Math.sin(angle) * 2.25, Math.cos(angle) * 2.25);
+      rune.rotation.x = angle;
+      group.add(rune);
+    }
+
+    const light = new THREE.PointLight(0x7c5cff, 1.55, 18, 1.7);
+    light.position.set(-0.35, 2.5, 0);
+    group.add(light);
+
+    group.userData.portal = { innerRing, core, swirl, light, baseIntensity: 1.55 };
     return group;
   }
 
@@ -1409,7 +1491,8 @@
   function resize() {
     width = Math.max(320, window.innerWidth);
     height = Math.max(320, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const pixelRatioCap = width < 900 || height < 560 ? 1.25 : 1.5;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, pixelRatioCap));
     renderer.setSize(width, height, false);
     const aspect = width / height;
     const viewSize = width < height ? 34 : 28;
@@ -1536,6 +1619,7 @@
     ui.startOverlay.classList.add("hidden");
     ui.resultOverlay.classList.add("hidden");
     ui.pauseButton.textContent = "II";
+    updateSpeedButton();
     updateHud();
     if (game.pendingLevelUps > 0) {
       openUpgradeChoice();
@@ -1571,26 +1655,47 @@
     return queue.sort(() => Math.random() - 0.48);
   }
 
+  function getBossTier(level) {
+    return Math.max(1, Math.ceil(clamp(level, 1, MAX_LEVEL) / 10));
+  }
+
+  function getPortalSpawnPosition(type = "minion") {
+    const spread = type === "boss" ? 1.4 : 3.8;
+    return new THREE.Vector3(
+      PORTAL_POS.x + randomRange(-0.7, 0.8),
+      0,
+      PORTAL_POS.z + randomRange(-spread, spread)
+    );
+  }
+
   function makeEnemy(type, saved = {}) {
     const config = enemyTypes[type];
     const scale = 1 + game.level * 0.11;
-    const maxHp = Number(saved.maxHp) || Math.round(config.hp * scale * (type === "boss" ? 1 + game.level * 0.08 : 1));
+    const bossTier = type === "boss" ? getBossTier(game.level) : 0;
+    const bossScale = type === "boss" ? 1 + (bossTier - 1) * 0.13 : 1;
+    const bossHpMultiplier = type === "boss" ? (1 + game.level * 0.08) * (1 + (bossTier - 1) * 0.72) : 1;
+    const spawnPos = getPortalSpawnPosition(type);
+    const maxHp = Number(saved.maxHp) || Math.round(config.hp * scale * bossHpMultiplier);
     const modelParts = createEnemyModel(type);
+    if (bossScale !== 1) modelParts.group.scale.setScalar(bossScale);
     const enemy = {
       id: Number(saved.id) || nextEnemyId++,
       type,
+      bossTier,
       pos: new THREE.Vector3(
-        Number.isFinite(Number(saved.x)) ? Number(saved.x) : WORLD.maxX + 3 + Math.random() * 5,
+        Number.isFinite(Number(saved.x)) ? Number(saved.x) : spawnPos.x,
         0,
-        Number.isFinite(Number(saved.z)) ? Number(saved.z) : randomRange(WORLD.laneMinZ + 1.2, WORLD.laneMaxZ - 1.2)
+        Number.isFinite(Number(saved.z)) ? Number(saved.z) : spawnPos.z
       ),
-      radius: config.radius,
+      radius: config.radius * bossScale,
+      height: config.height * bossScale,
       maxHp,
       hp: clamp(Number(saved.hp) || maxHp, 1, maxHp),
-      speed: config.speed * (1 + game.level * 0.012),
-      damage: Math.round(config.damage * (1 + game.level * 0.08)),
-      armor: config.armor,
+      speed: config.speed * (1 + game.level * 0.012) * (type === "boss" ? 1 + (bossTier - 1) * 0.07 : 1),
+      damage: Math.round(config.damage * (1 + game.level * 0.08) * (type === "boss" ? 1 + (bossTier - 1) * 0.3 : 1)),
+      armor: type === "boss" ? clamp(config.armor + (bossTier - 1) * 0.05, config.armor, 0.32) : config.armor,
       attackCooldown: Math.max(0, Number(saved.attackCooldown || 0)),
+      specialCooldown: type === "boss" ? Math.max(3.8, 6.2 - bossTier * 0.55) : 0,
       hitFlash: Math.max(0, Number(saved.hitFlash || 0)),
       walkTime: randomRange(0, Math.PI * 2),
       slow: 0,
@@ -1609,6 +1714,7 @@
 
   function update(dt) {
     game.saveTimer += dt;
+    game.hudTimer += dt;
     game.messageTimer = Math.max(0, game.messageTimer - dt);
     if (game.messageTimer <= 0) ui.worldMessage.classList.remove("visible");
     game.castle.hitFlash = Math.max(0, game.castle.hitFlash - dt);
@@ -1650,7 +1756,10 @@
     updateHeroModel();
     updateCastleModel();
     updateCamera(dt);
-    updateHud();
+    if (game.hudTimer >= 0.08) {
+      game.hudTimer = 0;
+      updateHud();
+    }
   }
 
   function updateHero(dt) {
@@ -1707,9 +1816,15 @@
     while (game.wave.spawnCooldown <= 0 && game.wave.spawnQueue.length) {
       const type = game.wave.spawnQueue.shift();
       game.enemies.push(makeEnemy(type));
+      makePortalSpawnEffect(type);
       game.wave.spawned += 1;
       game.wave.spawnCooldown += game.wave.spawnInterval * (0.75 + Math.random() * 0.5);
     }
+  }
+
+  function makePortalSpawnEffect(type) {
+    const radius = type === "boss" ? 3.2 : 1.7;
+    makeBurst(PORTAL_POS, radius, type === "boss" ? 0xff4c8b : 0x7c5cff, radius + 0.8);
   }
 
   function updateEnemies(dt) {
@@ -1748,7 +1863,7 @@
 
       if (touchingHero || touchingCastle) {
         if (enemy.attackCooldown <= 0) {
-          enemy.attackCooldown = enemy.type === "boss" ? 1.05 : 1.28;
+          enemy.attackCooldown = enemy.type === "boss" ? Math.max(0.72, 1.08 - enemy.bossTier * 0.1) : 1.28;
           if (touchingHero) damageHero(enemy.damage);
           else damageCastle(enemy.damage);
         }
@@ -1757,6 +1872,10 @@
         enemy.pos.addScaledVector(dirScratch, speed * dt);
         enemy.model.rotation.y = Math.atan2(dirScratch.x, dirScratch.z);
         enemy.walkTime += dt * speed * 2.4;
+      }
+
+      if (enemy.type === "boss") {
+        updateBossThreat(enemy, dt);
       }
 
       enemy.model.position.copy(enemy.pos);
@@ -1778,11 +1897,40 @@
   function updateEnemyHealth(enemy) {
     const health = enemy.health;
     const pct = clamp(enemy.hp / enemy.maxHp, 0, 1);
-    health.group.position.set(enemy.pos.x, enemyTypes[enemy.type].height + 0.92, enemy.pos.z);
+    health.group.position.set(enemy.pos.x, enemy.height + 0.92, enemy.pos.z);
     health.group.quaternion.copy(camera.quaternion);
     health.fg.scale.x = pct;
     health.fg.position.x = -health.width * (1 - pct) * 0.5;
     health.group.visible = pct < 0.999 || enemy.type === "boss";
+  }
+
+  function updateBossThreat(enemy, dt) {
+    enemy.specialCooldown = Math.max(0, (enemy.specialCooldown || 0) - dt);
+    if (enemy.specialCooldown > 0) return;
+
+    const tier = Math.max(1, enemy.bossTier || 1);
+    const radius = 4.3 + tier * 0.95;
+    enemy.specialCooldown = Math.max(3.6, 6.4 - tier * 0.55);
+    makeBurst(enemy.pos, radius, tier >= 3 ? 0xff4c8b : 0x8f63ff, radius + 0.6);
+
+    if (distance2D(enemy.pos, game.hero.pos) < radius + game.hero.radius) {
+      damageHero(8 + tier * 7);
+    }
+    if (distance2D(enemy.pos, game.castle.pos) < radius + game.castle.radius + 2) {
+      damageCastle(10 + tier * 8);
+    }
+
+    if (tier < 2 || game.enemies.length > 34) return;
+    const spawnCount = Math.min(2, tier - 1);
+    for (let i = 0; i < spawnCount; i += 1) {
+      const addType = tier >= 3 && i === 1 ? "brute" : "runner";
+      const add = makeEnemy(addType);
+      add.pos.copy(enemy.pos);
+      add.pos.x += randomRange(1.2, 2.6);
+      add.pos.z += randomRange(-2.2, 2.2);
+      add.model.position.copy(add.pos);
+      game.enemies.push(add);
+    }
   }
 
   function animateEnemyModel(enemy, attacking = false) {
@@ -1878,7 +2026,7 @@
     for (const torch of models.torches) {
       const pulse = 0.5 + 0.5 * Math.sin(time * 8.5 + torch.seed * 1.7);
       const jitter = 0.5 + 0.5 * Math.sin(time * 13.1 + torch.seed * 0.9);
-      torch.light.intensity = 0.72 + pulse * 0.42 + jitter * 0.12;
+      if (torch.light) torch.light.intensity = 0.72 + pulse * 0.36 + jitter * 0.1;
       torch.flame.scale.set(0.82 + jitter * 0.18, 0.92 + pulse * 0.24, 0.82 + jitter * 0.18);
       torch.glow.scale.setScalar(0.9 + pulse * 0.32);
       torch.glow.material.opacity = 0.12 + pulse * 0.1;
@@ -1887,6 +2035,19 @@
         torch.flame.material.emissiveIntensity = 1.8 + pulse * 0.7;
       }
     }
+    updatePortal(time, dt);
+  }
+
+  function updatePortal(time, dt) {
+    const portal = models.portal?.userData?.portal;
+    if (!portal) return;
+    const pulse = 0.5 + 0.5 * Math.sin(time * 3.6);
+    portal.innerRing.rotation.z += dt * 0.85;
+    portal.swirl.rotation.z -= dt * 1.55;
+    portal.core.scale.setScalar(0.94 + pulse * 0.08);
+    portal.core.material.opacity = 0.22 + pulse * 0.16;
+    portal.swirl.material.opacity = 0.34 + pulse * 0.24;
+    portal.light.intensity = portal.baseIntensity + pulse * 0.55;
   }
 
   function checkWaveComplete(dt) {
@@ -1955,8 +2116,9 @@
     if (enemy.hp <= 0) {
       enemy.dead = true;
       const config = enemyTypes[enemy.type];
-      const gain = Math.round(config.score * (1 + game.level * 0.08));
-      const xpGain = Math.round(config.xp * (1 + game.level * 0.05));
+      const tierBonus = enemy.bossTier ? 1 + (enemy.bossTier - 1) * 0.55 : 1;
+      const gain = Math.round(config.score * tierBonus * (1 + game.level * 0.08));
+      const xpGain = Math.round(config.xp * tierBonus * (1 + game.level * 0.05));
       game.score += gain;
       gainXp(xpGain);
       makeBurst(enemy.pos, enemy.radius + 1.4, config.core, enemy.type === "boss" ? 4.2 : 2.4);
@@ -2323,7 +2485,7 @@
       side: THREE.DoubleSide,
       depthWrite: false,
     });
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.52, 48), mat);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.52, 28), mat);
     ring.rotation.x = -Math.PI / 2;
     ring.position.set(position.x, 0.12, position.z);
     scene.add(ring);
@@ -2470,13 +2632,21 @@
       fire: "▲",
       ice: "❄",
     };
+    const iconClasses = {
+      blast: "icon-blast",
+      meteor: "icon-meteor",
+      fire: "icon-fire",
+      ice: "icon-ice",
+    };
     const names = {
       blast: "Круговой удар",
       meteor: "Метеорит",
       fire: "Огонь",
       ice: "Лёд",
     };
-    ui.blastLabel.textContent = labels[game.activeElement] || "]";
+    ui.blastLabel.textContent = "";
+    ui.blastLabel.className = `button-icon ${iconClasses[game.activeElement] || "icon-blast"}`;
+    ui.blastLabel.setAttribute("title", labels[game.activeElement] || "]");
     ui.blastButton.setAttribute("aria-label", names[game.activeElement] || "Круговой удар");
   }
 
@@ -2484,6 +2654,9 @@
     const items = Object.keys(UPGRADE_DEFS)
       .filter((id) => game.upgrades[id] > 0)
       .map((id) => ({ id, def: UPGRADE_DEFS[id], level: game.upgrades[id] }));
+    const key = `${game.heroLevel}|${items.map((item) => `${item.id}:${item.level}`).join(",")}`;
+    if (game.upgradeSummaryKey === key) return;
+    game.upgradeSummaryKey = key;
     if (!items.length) {
       ui.upgradeSummary.textContent = "";
       return;
@@ -2555,12 +2728,26 @@
     }
   }
 
+  function toggleSpeed() {
+    if (game.screen !== "playing" && game.screen !== "paused") return;
+    game.timeScale = game.timeScale === 2 ? 1 : 2;
+    updateSpeedButton();
+  }
+
+  function updateSpeedButton() {
+    ui.speedButton.textContent = game.timeScale === 2 ? "x2" : "x1";
+    ui.speedButton.classList.toggle("active", game.timeScale === 2);
+    ui.speedButton.setAttribute("aria-pressed", String(game.timeScale === 2));
+    ui.speedButton.setAttribute("aria-label", `Скорость игры ${game.timeScale}x`);
+  }
+
   function bindInput() {
     ui.playButton.addEventListener("click", () => startGame({ resume: false }));
     ui.continueButton.addEventListener("click", () => startGame({ resume: true }));
     ui.restartButton.addEventListener("click", () => startGame({ resume: false }));
     ui.menuButton.addEventListener("click", showMenu);
     ui.pauseButton.addEventListener("click", togglePause);
+    ui.speedButton.addEventListener("click", toggleSpeed);
     ui.rerollButton.addEventListener("click", rerollUpgrades);
     ui.resetProgressButton.addEventListener("click", () => {
       for (const key of Object.values(SAVE)) removeStorage(key);
@@ -2635,6 +2822,7 @@
       if (event.code === "BracketLeft" || key === "[" || key === "q") useAbility("dash");
       if (event.code === "BracketRight" || key === "]" || key === "e") useAbility("blast");
       if (event.code === "Quote" || key === "'" || key === "r") useAbility("guard");
+      if (event.code === "KeyX") toggleSpeed();
       if (key === "p" || key === "escape") togglePause();
     });
 
@@ -2671,6 +2859,7 @@
       "BracketLeft",
       "BracketRight",
       "Quote",
+      "KeyX",
     ].includes(event.code);
   }
 
@@ -2717,7 +2906,7 @@
 
   function frame() {
     const dt = Math.min(0.033, Math.max(0, clock.getDelta()));
-    if (game.screen === "playing") update(dt);
+    if (game.screen === "playing") update(Math.min(0.066, dt * game.timeScale));
     else {
       updateEnvironment(dt);
       updateCamera(dt);

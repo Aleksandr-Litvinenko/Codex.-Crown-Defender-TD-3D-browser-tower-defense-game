@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#111924">
     <title>Crown Defender TD</title>
-    <link rel="stylesheet" href="styles.css?v=textures-v2">
+    <link rel="stylesheet" href="styles.css?v=gameplay-v3">
   </head>
   <body>
     <main class="game-shell" id="gameShell">
@@ -60,7 +60,10 @@
         </div>
       </section>
 
-      <button class="pause-button" id="pauseButton" aria-label="Пауза">II</button>
+      <div class="top-actions">
+        <button class="speed-button" id="speedButton" aria-label="Скорость игры 1x" aria-pressed="false">x1</button>
+        <button class="pause-button" id="pauseButton" aria-label="Пауза">II</button>
+      </div>
       <aside class="upgrade-summary" id="upgradeSummary" aria-label="Полученные улучшения"></aside>
       <div class="world-message" id="worldMessage" aria-live="polite"></div>
 
@@ -72,22 +75,22 @@
 
         <div class="actions">
           <button class="skill-button" data-ability="guard" id="guardButton" aria-label="Щит замка">
-            <span class="button-glyph">◆</span>
+            <span class="button-icon icon-guard" aria-hidden="true"></span>
             <span class="button-key">'</span>
             <small id="guardCooldown"></small>
           </button>
           <button class="skill-button" data-ability="blast" id="blastButton" aria-label="Круговой удар">
-            <span class="button-glyph" id="blastLabel">✦</span>
+            <span class="button-icon icon-blast" id="blastLabel" aria-hidden="true"></span>
             <span class="button-key">]</span>
             <small id="blastCooldown"></small>
           </button>
           <button class="skill-button" data-ability="dash" id="dashButton" aria-label="Рывок">
-            <span class="button-glyph">↟</span>
+            <span class="button-icon icon-dash" aria-hidden="true"></span>
             <span class="button-key">[</span>
             <small id="dashCooldown"></small>
           </button>
           <button class="attack-button" id="attackButton" aria-label="Атака">
-            <span class="button-glyph">⚔</span>
+            <span class="button-icon icon-attack" aria-hidden="true"></span>
             <span class="button-key">;</span>
           </button>
         </div>
@@ -159,6 +162,6 @@
     </main>
 
     <script src="vendor/three.min.js"></script>
-    <script src="game.js?v=textures-v2"></script>
+    <script src="game.js?v=gameplay-v3"></script>
   </body>
 </html>

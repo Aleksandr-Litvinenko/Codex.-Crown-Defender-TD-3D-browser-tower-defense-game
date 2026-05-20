@@ -49,8 +49,8 @@ No special server routing is required.
 The HTML currently references CSS and JS with a query version:
 
 ```html
-styles.css?v=textures-v2
-game.js?v=textures-v2
+styles.css?v=gameplay-v3
+game.js?v=gameplay-v3
 ```
 
 When making visible changes, update the query suffix to force browsers to load the latest files.

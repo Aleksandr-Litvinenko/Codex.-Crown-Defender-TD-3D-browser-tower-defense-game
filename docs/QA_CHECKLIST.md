@@ -18,6 +18,7 @@ Use this checklist before publishing a new version.
 - Castle renders with towers, roofs, windows, and runes.
 - Trees, stones, and torches render around the arena.
 - Torch lights are visible and do not overexpose the scene.
+- Right-side portal renders and animates.
 - Hero is readable against the floor.
 - Enemies are visually distinct by type.
 
@@ -38,7 +39,10 @@ Use this checklist before publishing a new version.
 - `]` triggers elemental / area skill.
 - `'` triggers guard.
 - Cooldowns update visually.
+- Speed button toggles between `x1` and `x2`.
+- Touching action buttons does not select button text.
 - Enemies take damage.
+- Enemies spawn from the right-side portal.
 - Castle takes damage when enemies reach it.
 - Hero takes damage when enemies attack the hero.
 
@@ -81,6 +85,8 @@ Use this checklist before publishing a new version.
 ## Victory and Defeat
 
 - Victory triggers after clearing wave 30.
+- Wave 20 boss is harder than wave 10 boss.
+- Wave 30 boss is harder than wave 20 boss.
 - Crown is awarded after victory.
 - Defeat title says `Вы проиграли`.
 - Stun message says `вас оглушили`.
