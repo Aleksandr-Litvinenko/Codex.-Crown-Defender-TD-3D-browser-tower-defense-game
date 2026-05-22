@@ -7,6 +7,8 @@
     startOverlay: document.getElementById("startOverlay"),
     resultOverlay: document.getElementById("resultOverlay"),
     playButton: document.getElementById("playButton"),
+    multiplayerButton: document.getElementById("multiplayerButton"),
+    multiplayerStatus: document.getElementById("multiplayerStatus"),
     continueButton: document.getElementById("continueButton"),
     restartButton: document.getElementById("restartButton"),
     menuButton: document.getElementById("menuButton"),
@@ -249,13 +251,13 @@
   renderer.setClearColor(0x101924, 1);
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.toneMapping = THREE.ReinhardToneMapping;
-  renderer.toneMappingExposure = 0.66;
+  renderer.toneMappingExposure = 0.9;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x14202b);
-  scene.fog = new THREE.Fog(0x14202b, 42, 96);
+  scene.background = new THREE.Color(0x213343);
+  scene.fog = new THREE.Fog(0x213343, 56, 124);
 
   const camera = new THREE.OrthographicCamera(-16, 16, 12, -12, 0.1, 180);
   const clock = new THREE.Clock();
@@ -271,10 +273,28 @@
     heroParts: {},
     heroGear: {},
     heroCrown: null,
+    ally: null,
+    allyParts: {},
     castle: null,
     castleShield: null,
     portal: null,
     torches: [],
+  };
+
+  const mp = {
+    socket: null,
+    connected: false,
+    active: false,
+    started: false,
+    isHost: false,
+    playerId: 0,
+    roomId: "",
+    startAt: 0,
+    status: "",
+    inputTimer: 0,
+    stateTimer: 0,
+    remoteInput: { x: 0, y: 0, attackHeld: false, ability: null },
+    lastInput: "",
   };
 
   let width = 0;
@@ -364,6 +384,7 @@
       timeScale: 1,
       hudTimer: 0,
       upgradeSummaryKey: "",
+      multiplayerMode: false,
       enemies: [],
       projectiles: [],
       effects: [],
@@ -373,6 +394,7 @@
         spawnInterval: 0.7,
         total: 0,
         spawned: 0,
+        remoteQueued: 0,
       },
       intermissionTimer: 0,
       saveTimer: 0,
@@ -417,6 +439,7 @@
         walkTime: 0,
         moving: false,
       },
+      ally: null,
       castle: {
         pos: CASTLE_POS.clone(),
         radius: 4.6,
@@ -434,9 +457,9 @@
   }
 
   function initScene() {
-    scene.add(new THREE.HemisphereLight(0xbfd7ff, 0x26331f, 0.54));
+    scene.add(new THREE.HemisphereLight(0xe3efff, 0x3d4c2c, 0.78));
 
-    const sun = new THREE.DirectionalLight(0xfff2cf, 0.82);
+    const sun = new THREE.DirectionalLight(0xfff5d6, 1.08);
     sun.position.set(-18, 34, 18);
     sun.castShadow = true;
     sun.shadow.mapSize.width = 512;
@@ -447,7 +470,7 @@
     sun.shadow.camera.bottom = -42;
     scene.add(sun);
 
-    const fill = new THREE.DirectionalLight(0x76d6ff, 0.14);
+    const fill = new THREE.DirectionalLight(0x9de8ff, 0.28);
     fill.position.set(24, 14, -18);
     scene.add(fill);
 
@@ -1032,6 +1055,96 @@
     return group;
   }
 
+  function createAllyState() {
+    return {
+      pos: HERO_START.clone().add(new THREE.Vector3(0, 0, 2.5)),
+      radius: 0.85,
+      hp: 120,
+      maxHp: 120,
+      speed: 8.0,
+      dir: new THREE.Vector3(1, 0, 0),
+      attackCooldown: 0,
+      attackFlash: 0,
+      invulnerable: 0,
+      downTimer: 0,
+      dashTime: 0,
+      dashVelocity: new THREE.Vector3(),
+      dashHits: new Set(),
+      walkTime: 0,
+      moving: false,
+    };
+  }
+
+  function ensureAlly() {
+    if (!game.ally) game.ally = createAllyState();
+    if (!models.ally) {
+      models.ally = createAllyModel();
+      scene.add(models.ally);
+    }
+    models.ally.visible = true;
+  }
+
+  function createAllyModel() {
+    const group = new THREE.Group();
+    group.scale.setScalar(1.04);
+    const armorMat = new THREE.MeshStandardMaterial({
+      color: 0x86d6ff,
+      map: textures.heroArmor,
+      roughness: 0.52,
+      metalness: 0.1,
+      emissive: 0x062436,
+      emissiveIntensity: 0.08,
+    });
+    const darkMat = new THREE.MeshStandardMaterial({ color: 0x15212c, roughness: 0.82 });
+    const bowMat = new THREE.MeshStandardMaterial({ color: 0xe6a95d, map: textures.bowWood, roughness: 0.74 });
+
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.74, 1.32, 14), armorMat);
+    body.position.y = 1.08;
+    body.castShadow = true;
+    group.add(body);
+
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.42, 14, 10), armorMat);
+    head.position.y = 1.93;
+    head.castShadow = true;
+    group.add(head);
+
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.52), darkMat);
+    visor.position.set(0.36, 1.96, 0);
+    group.add(visor);
+
+    const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.17, 0.78, 8), armorMat);
+    leftLeg.position.set(0, 0.38, -0.24);
+    leftLeg.castShadow = true;
+    group.add(leftLeg);
+
+    const rightLeg = leftLeg.clone();
+    rightLeg.position.z = 0.24;
+    rightLeg.castShadow = true;
+    group.add(rightLeg);
+
+    const bow = new THREE.Group();
+    const bowArc = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.032, 8, 16, Math.PI * 1.15), bowMat);
+    bowArc.rotation.z = Math.PI / 2;
+    bow.add(bowArc);
+    const string = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.92, 0.03), darkMat);
+    string.position.x = 0.28;
+    bow.add(string);
+    bow.position.set(0.72, 1.18, 0.36);
+    bow.rotation.y = Math.PI / 2;
+    group.add(bow);
+
+    const badge = new THREE.Mesh(
+      new THREE.CircleGeometry(0.28, 18),
+      new THREE.MeshBasicMaterial({ color: 0x9fe7ff, transparent: true, opacity: 0.72, side: THREE.DoubleSide })
+    );
+    badge.position.set(0, 2.5, 0);
+    badge.rotation.x = -Math.PI / 2;
+    group.add(badge);
+
+    models.allyParts = { body, head, leftLeg, rightLeg, bow, badge };
+    return group;
+  }
+
   function createEnemyModel(type) {
     const config = enemyTypes[type];
     const group = new THREE.Group();
@@ -1421,6 +1534,7 @@
 
   function saveRun() {
     if (game.screen !== "playing" && game.screen !== "paused" && game.screen !== "upgrade") return;
+    if (game.multiplayerMode) return;
     const run = {
       version: 3,
       savedAt: Date.now(),
@@ -1519,6 +1633,11 @@
     for (const effect of game.effects) {
       if (effect.mesh) scene.remove(effect.mesh);
     }
+    if (models.ally) {
+      scene.remove(models.ally);
+      models.ally = null;
+      models.allyParts = {};
+    }
     game.enemies = [];
     game.projectiles = [];
     game.effects = [];
@@ -1604,7 +1723,7 @@
     updateCamera(1, true);
   }
 
-  function startGame({ resume = false } = {}) {
+  function startGame({ resume = false, multiplayer = false } = {}) {
     if (resume) {
       const run = readRun();
       if (run) restoreRun(run);
@@ -1613,6 +1732,8 @@
       clearRun();
       resetGameState();
     }
+    game.multiplayerMode = multiplayer;
+    if (multiplayer) ensureAlly();
     game.screen = "playing";
     showWorldMessage(`Волна ${game.level}`, 1.7);
     document.body.className = "playing";
@@ -1731,6 +1852,10 @@
     if (game.heroDownTimer <= 0) {
       updateHero(dt);
     }
+    if (mp.active && mp.isHost) {
+      ensureAlly();
+      updateAllyHero(dt);
+    }
 
     updateWave(dt);
     updateEnemies(dt);
@@ -1754,11 +1879,19 @@
     }
 
     updateHeroModel();
+    if (game.ally) updateAllyModel();
     updateCastleModel();
     updateCamera(dt);
     if (game.hudTimer >= 0.08) {
       game.hudTimer = 0;
       updateHud();
+    }
+    if (mp.active && mp.isHost) {
+      mp.stateTimer += dt;
+      if (mp.stateTimer >= 0.1) {
+        mp.stateTimer = 0;
+        sendStateSnapshot();
+      }
     }
   }
 
@@ -1787,6 +1920,43 @@
     }
     hero.pos.addScaledVector(velocityScratch, dt);
     clampHero();
+  }
+
+  function updateAllyHero(dt) {
+    if (!game.ally) return;
+    const ally = game.ally;
+    ally.attackCooldown = Math.max(0, ally.attackCooldown - dt);
+    ally.attackFlash = Math.max(0, ally.attackFlash - dt);
+    ally.invulnerable = Math.max(0, ally.invulnerable - dt);
+    ally.downTimer = Math.max(0, ally.downTimer - dt);
+    if (ally.downTimer > 0) return;
+
+    const input = mp.remoteInput || {};
+    const mag = Math.hypot(input.x || 0, input.y || 0);
+    if (mag > 0.05) {
+      moveScratch.set(input.x, 0, input.y).normalize();
+      ally.dir.copy(moveScratch);
+      velocityScratch.copy(moveScratch).multiplyScalar(ally.speed);
+    } else {
+      velocityScratch.set(0, 0, 0);
+    }
+
+    if (ally.dashTime > 0) {
+      ally.dashTime = Math.max(0, ally.dashTime - dt);
+      velocityScratch.add(ally.dashVelocity);
+      hitEnemiesDuringAllyDash();
+    } else {
+      ally.dashHits.clear();
+    }
+
+    ally.moving = velocityScratch.lengthSq() > 0.01;
+    if (ally.moving) ally.walkTime += dt * (ally.dashTime > 0 ? 16 : 9.2);
+    ally.pos.addScaledVector(velocityScratch, dt);
+    ally.pos.x = clamp(ally.pos.x, WORLD.minX + 5, WORLD.maxX - 3);
+    ally.pos.z = clamp(ally.pos.z, WORLD.minZ + 2.5, WORLD.maxZ - 2.5);
+    ally.pos.y = 0;
+
+    if (input.attackHeld) allyBasicAttack();
   }
 
   function getMoveInput() {
@@ -1844,9 +2014,10 @@
         }
       }
 
-      const heroDist = distance2D(enemy.pos, game.hero.pos);
-      const canChaseHero = game.heroDownTimer <= 0 && heroDist < 7.5 && enemy.pos.x > game.castle.pos.x + 7;
-      const target = canChaseHero ? game.hero.pos : castleFront;
+      const heroTarget = findEnemyHeroTarget(enemy);
+      const heroDist = heroTarget ? distance2D(enemy.pos, heroTarget.hero.pos) : Infinity;
+      const canChaseHero = Boolean(heroTarget) && heroDist < 7.5 && enemy.pos.x > game.castle.pos.x + 7;
+      const target = canChaseHero ? heroTarget.hero.pos : castleFront;
       dirScratch.subVectors(target, enemy.pos);
       dirScratch.y = 0;
       if (!canChaseHero) {
@@ -1855,7 +2026,7 @@
       const len = dirScratch.length() || 1;
       dirScratch.multiplyScalar(1 / len);
 
-      const touchingHero = canChaseHero && heroDist < enemy.radius + game.hero.radius + 0.55;
+      const touchingHero = canChaseHero && heroDist < enemy.radius + heroTarget.hero.radius + 0.55;
       const touchingCastle =
         enemy.pos.x - enemy.radius <= castleFront.x &&
         enemy.pos.z > game.castle.pos.z - 4.8 &&
@@ -1864,7 +2035,7 @@
       if (touchingHero || touchingCastle) {
         if (enemy.attackCooldown <= 0) {
           enemy.attackCooldown = enemy.type === "boss" ? Math.max(0.72, 1.08 - enemy.bossTier * 0.1) : 1.28;
-          if (touchingHero) damageHero(enemy.damage);
+          if (touchingHero) damageHeroTarget(heroTarget.kind, enemy.damage);
           else damageCastle(enemy.damage);
         }
       } else {
@@ -2097,6 +2268,41 @@
     }
   }
 
+  function findEnemyHeroTarget(enemy) {
+    let best = null;
+    if (game.heroDownTimer <= 0) {
+      best = { kind: "hero", hero: game.hero, dist: distance2D(enemy.pos, game.hero.pos) };
+    }
+    if (game.ally && game.ally.downTimer <= 0) {
+      const allyDist = distance2D(enemy.pos, game.ally.pos);
+      if (!best || allyDist < best.dist) {
+        best = { kind: "ally", hero: game.ally, dist: allyDist };
+      }
+    }
+    return best;
+  }
+
+  function damageHeroTarget(kind, amount) {
+    if (kind === "ally") damageAllyHero(amount);
+    else damageHero(amount);
+  }
+
+  function damageAllyHero(amount) {
+    const ally = game.ally;
+    if (!ally || ally.invulnerable > 0 || ally.downTimer > 0) return;
+    const shieldReduction = game.castle.shield > 0 ? 0.55 : 1;
+    ally.hp -= Math.round(amount * shieldReduction);
+    ally.invulnerable = 0.32;
+    makeBurst(ally.pos, 1.15, 0x9fe7ff, 1.8);
+    if (ally.hp <= 0) {
+      ally.hp = 1;
+      ally.downTimer = 2.1;
+      ally.invulnerable = 2.4;
+      damageCastle(18);
+      showWorldMessage("Союзника оглушили", 1.2);
+    }
+  }
+
   function damageCastle(amount) {
     const reduction = game.castle.shield > 0 ? 0.36 : 1;
     const finalDamage = Math.round(amount * reduction);
@@ -2132,6 +2338,10 @@
   }
 
   function basicAttack() {
+    if (mp.active && !mp.isHost) {
+      sendLocalInput(null, true);
+      return;
+    }
     if (game.screen !== "playing" || game.heroDownTimer > 0 || game.hero.attackCooldown > 0) return;
     const style = game.activeStyle || "arrow";
     const range = getAttackRange(style);
@@ -2153,6 +2363,44 @@
     else if (style === "magic") attackWithMagic(target);
     else if (style === "chains") attackWithChains(target);
     else attackWithArrow(target);
+  }
+
+  function allyBasicAttack() {
+    const ally = game.ally;
+    if (!ally || ally.downTimer > 0 || ally.attackCooldown > 0) return;
+    const target = findNearestEnemy(14, ally.pos);
+    if (!target) {
+      ally.attackCooldown = 0.2;
+      return;
+    }
+    dirScratch.subVectors(target.pos, ally.pos);
+    dirScratch.y = 0;
+    dirScratch.normalize();
+    ally.dir.copy(dirScratch);
+    ally.attackCooldown = 0.52;
+    ally.attackFlash = 0.18;
+
+    const mat = new THREE.MeshStandardMaterial({ color: 0x9fe7ff, map: textures.bowWood, roughness: 0.5, metalness: 0.06 });
+    const mesh = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.76, 8), mat);
+    mesh.position.copy(ally.pos).addScaledVector(ally.dir, 1.0);
+    mesh.position.y = 1.2;
+    mesh.rotation.z = -Math.PI / 2;
+    mesh.rotation.y = Math.atan2(ally.dir.x, ally.dir.z);
+    scene.add(mesh);
+
+    game.projectiles.push({
+      pos: mesh.position.clone(),
+      velocity: ally.dir.clone().multiplyScalar(23),
+      speed: 23,
+      radius: 0.28,
+      damage: (24 + game.level * 1.1 + game.heroLevel * 0.9) * getDamageMultiplier(),
+      targetId: target.id,
+      life: 1.25,
+      kind: "arrow",
+      splash: 0,
+      done: false,
+      mesh,
+    });
   }
 
   function getStyleLevel(style) {
@@ -2305,6 +2553,10 @@
 
   function useAbility(name) {
     if (game.screen !== "playing" || game.heroDownTimer > 0) return;
+    if (mp.active && !mp.isHost) {
+      sendLocalInput(name, true);
+      return;
+    }
     if (name === "dash") useDash();
     if (name === "blast") useBlast();
     if (name === "guard") useGuard();
@@ -2330,6 +2582,39 @@
       if (distance2D(game.hero.pos, enemy.pos) < game.hero.radius + enemy.radius + 1.2) {
         game.hero.dashHits.add(enemy.id);
         damageEnemy(enemy, 62 + game.level * 2.15, "dash");
+      }
+    }
+  }
+
+  function useAllyAbility(name) {
+    if (!game.ally || game.ally.downTimer > 0) return;
+    if (name === "dash") {
+      game.ally.dashTime = 0.2;
+      game.ally.dashVelocity.copy(game.ally.dir).multiplyScalar(30);
+      game.ally.invulnerable = 0.22;
+      game.ally.dashHits.clear();
+      makeBurst(game.ally.pos, 1.1, 0x9fe7ff, 2.2);
+      return;
+    }
+    if (name === "blast") {
+      const radius = 6.8;
+      damageEnemiesInRadius(game.ally.pos, radius, 54 + game.level * 1.8, "blast");
+      makeBurst(game.ally.pos, radius, 0x9fe7ff, 4.2);
+      return;
+    }
+    if (name === "guard") {
+      game.castle.shield = Math.max(game.castle.shield, 4.5);
+      makeBurst(new THREE.Vector3(game.castle.pos.x + 2, 0, game.castle.pos.z), 4, 0x9fe7ff, 4.8);
+    }
+  }
+
+  function hitEnemiesDuringAllyDash() {
+    if (!game.ally) return;
+    for (const enemy of game.enemies) {
+      if (enemy.dead || game.ally.dashHits.has(enemy.id)) continue;
+      if (distance2D(game.ally.pos, enemy.pos) < game.ally.radius + enemy.radius + 1.1) {
+        game.ally.dashHits.add(enemy.id);
+        damageEnemy(enemy, 46 + game.level * 1.7, "dash");
       }
     }
   }
@@ -2434,12 +2719,12 @@
     makeBurst(new THREE.Vector3(game.castle.pos.x + 2, 0, game.castle.pos.z), 4.4, 0xf3be4d, 5.5);
   }
 
-  function findNearestEnemy(range) {
+  function findNearestEnemy(range, origin = game.hero.pos) {
     let best = null;
     let bestDist = range;
     for (const enemy of game.enemies) {
       if (enemy.dead) continue;
-      const dist = distance2D(game.hero.pos, enemy.pos);
+      const dist = distance2D(origin, enemy.pos);
       if (dist < bestDist) {
         bestDist = dist;
         best = enemy;
@@ -2553,11 +2838,32 @@
     if (models.heroBodyMat) {
       colorScratch.setHex(getStyleColor(game.activeStyle));
       models.heroBodyMat.color.lerp(colorScratch, 0.12);
-      models.heroBodyMat.emissive.setHex(game.hero.attackFlash > 0 ? getStyleColor(game.activeStyle) : 0x062d32);
-      models.heroBodyMat.emissiveIntensity = game.hero.attackFlash > 0 ? 0.38 : 0.12;
+      models.heroBodyMat.emissive.setHex(0x062d32);
+      models.heroBodyMat.emissiveIntensity = 0.08;
     }
     const down = game.heroDownTimer > 0;
     models.hero.visible = !down || Math.sin(performance.now() / 80) > -0.35;
+  }
+
+  function updateAllyModel() {
+    if (!game.ally || !models.ally) return;
+    const ally = game.ally;
+    models.ally.position.copy(ally.pos);
+    models.ally.rotation.y = Math.atan2(ally.dir.x, ally.dir.z) - Math.PI / 2;
+    const parts = models.allyParts || {};
+    const stride = ally.moving ? Math.sin(ally.walkTime) * 0.36 : 0;
+    const counter = ally.moving ? Math.sin(ally.walkTime + Math.PI) * 0.36 : 0;
+    const attack = ally.attackFlash > 0 ? Math.sin((0.2 - ally.attackFlash) * 22) : 0;
+    if (parts.leftLeg && parts.rightLeg) {
+      parts.leftLeg.rotation.z = stride;
+      parts.rightLeg.rotation.z = counter;
+    }
+    if (parts.bow) parts.bow.rotation.z = attack * 0.14;
+    if (parts.badge) {
+      parts.badge.rotation.z += 0.025;
+      parts.badge.visible = mp.active;
+    }
+    models.ally.visible = ally.downTimer <= 0 || Math.sin(performance.now() / 90) > -0.35;
   }
 
   function getStyleColor(style) {
@@ -2583,10 +2889,11 @@
   }
 
   function updateCamera(dt, immediate = false) {
+    const follow = mp.active && !mp.isHost && game.ally ? game.ally : game.hero;
     desiredFocus.set(
-      clamp(game.hero.pos.x, WORLD.minX + 17, WORLD.maxX - 18),
+      clamp(follow.pos.x, WORLD.minX + 17, WORLD.maxX - 18),
       0,
-      clamp(game.hero.pos.z, WORLD.minZ + 10, WORLD.maxZ - 10)
+      clamp(follow.pos.z, WORLD.minZ + 10, WORLD.maxZ - 10)
     );
     if (immediate) cameraFocus.copy(desiredFocus);
     else cameraFocus.lerp(desiredFocus, 1 - Math.exp(-dt * 4.8));
@@ -2601,7 +2908,8 @@
   function updateHud() {
     ui.waveText.textContent = `${game.level}/${MAX_LEVEL}`;
     ui.scoreText.textContent = formatNumber(game.score);
-    ui.enemyText.textContent = String(game.enemies.length + game.wave.spawnQueue.length);
+    const queuedEnemies = mp.active && !mp.isHost ? game.wave.remoteQueued : game.wave.spawnQueue.length;
+    ui.enemyText.textContent = String(game.enemies.length + queuedEnemies);
     const castlePct = clamp(game.castle.hp / game.castle.maxHp, 0, 1);
     const heroPct = clamp(game.hero.hp / game.hero.maxHp, 0, 1);
     const xpPct = clamp(game.xp / game.xpToNext, 0, 1);
@@ -2715,6 +3023,238 @@
     refreshMenu();
   }
 
+  function connectMultiplayer() {
+    if (mp.socket && [WebSocket.CONNECTING, WebSocket.OPEN].includes(mp.socket.readyState)) return;
+    resetMultiplayer(false);
+    setMultiplayerStatus("Подключение к комнате...");
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const isLocalHttpServer = ["localhost", "127.0.0.1"].includes(window.location.hostname) && window.location.port === "8010";
+    const host = isLocalHttpServer ? `${window.location.hostname}:8090` : window.location.host;
+    const socket = new WebSocket(`${protocol}//${host}/ws/`);
+    mp.socket = socket;
+
+    socket.addEventListener("open", () => {
+      mp.connected = true;
+      sendMultiplayer({ type: "ping" });
+    });
+    socket.addEventListener("message", (event) => {
+      handleMultiplayerMessage(event.data);
+    });
+    socket.addEventListener("close", () => {
+      if (mp.active) showWorldMessage("Второй игрок отключился", 1.8);
+      setMultiplayerStatus("Соединение закрыто");
+      resetMultiplayer(true);
+    });
+    socket.addEventListener("error", () => {
+      setMultiplayerStatus("Мультиплеер недоступен");
+    });
+  }
+
+  function handleMultiplayerMessage(raw) {
+    let payload;
+    try {
+      payload = JSON.parse(raw);
+    } catch {
+      return;
+    }
+
+    if (payload.type === "joined") {
+      mp.playerId = payload.playerId;
+      mp.roomId = payload.roomId;
+      mp.isHost = payload.playerId === 1;
+      setMultiplayerStatus(payload.waiting ? "Ожидание второго игрока..." : "Комната готова");
+      return;
+    }
+
+    if (payload.type === "match-ready") {
+      mp.startAt = Number(payload.startAt || Date.now() + 5000);
+      mp.started = false;
+      setMultiplayerStatus("Второй игрок подключился. Старт через 5...");
+      return;
+    }
+
+    if (payload.type === "input" && mp.isHost) {
+      mp.remoteInput = normalizeRemoteInput(payload.input);
+      if (mp.remoteInput.ability) useAllyAbility(mp.remoteInput.ability);
+      return;
+    }
+
+    if (payload.type === "state" && !mp.isHost) {
+      applyRemoteState(payload.state);
+      return;
+    }
+
+    if (payload.type === "peer-left") {
+      setMultiplayerStatus("Второй игрок отключился");
+      if (game.screen === "playing") showWorldMessage("Второй игрок отключился", 1.8);
+    }
+  }
+
+  function updateMultiplayerCountdown() {
+    if (!mp.startAt || mp.started) return;
+    const remaining = Math.max(0, Math.ceil((mp.startAt - Date.now()) / 1000));
+    setMultiplayerStatus(`Старт через ${remaining}...`);
+    if (Date.now() >= mp.startAt) {
+      mp.started = true;
+      mp.active = true;
+      startGame({ resume: false, multiplayer: true });
+      showWorldMessage(mp.isHost ? "Вы игрок 1" : "Вы игрок 2", 1.4);
+    }
+  }
+
+  function setMultiplayerStatus(text) {
+    mp.status = text;
+    ui.multiplayerStatus.textContent = text;
+  }
+
+  function resetMultiplayer(keepStatus = false) {
+    mp.connected = false;
+    mp.active = false;
+    mp.started = false;
+    mp.isHost = false;
+    mp.playerId = 0;
+    mp.roomId = "";
+    mp.startAt = 0;
+    mp.inputTimer = 0;
+    mp.stateTimer = 0;
+    mp.remoteInput = { x: 0, y: 0, attackHeld: false, ability: null };
+    mp.lastInput = "";
+    if (!keepStatus) setMultiplayerStatus("");
+  }
+
+  function closeMultiplayer() {
+    if (mp.socket && [WebSocket.CONNECTING, WebSocket.OPEN].includes(mp.socket.readyState)) {
+      mp.socket.close();
+    }
+    mp.socket = null;
+    resetMultiplayer(false);
+  }
+
+  function sendMultiplayer(payload) {
+    if (!mp.socket || mp.socket.readyState !== WebSocket.OPEN) return;
+    mp.socket.send(JSON.stringify(payload));
+  }
+
+  function normalizeRemoteInput(input = {}) {
+    return {
+      x: clamp(Number(input.x || 0), -1, 1),
+      y: clamp(Number(input.y || 0), -1, 1),
+      attackHeld: Boolean(input.attackHeld),
+      ability: typeof input.ability === "string" ? input.ability : null,
+    };
+  }
+
+  function getLocalInputSnapshot(ability = null) {
+    const input = getMoveInput();
+    return {
+      x: input.x,
+      y: input.y,
+      attackHeld: pointer.attackHeld || pointer.keyboardAttackHeld,
+      ability,
+    };
+  }
+
+  function sendLocalInput(ability = null, force = false) {
+    if (!mp.active || mp.isHost) return;
+    const input = getLocalInputSnapshot(ability);
+    const key = JSON.stringify(input);
+    if (!force && key === mp.lastInput) return;
+    mp.lastInput = key;
+    sendMultiplayer({ type: "input", input });
+  }
+
+  function sendStateSnapshot() {
+    if (!mp.active || !mp.isHost) return;
+    sendMultiplayer({
+      type: "state",
+      state: {
+        level: game.level,
+        score: game.score,
+        screen: game.screen,
+        castleHp: game.castle.hp,
+        castleShield: game.castle.shield,
+        hero: serializeHero(game.hero),
+        ally: game.ally ? serializeHero(game.ally) : null,
+        queued: game.wave.spawnQueue.length,
+        enemies: game.enemies
+          .filter((enemy) => !enemy.dead)
+          .map((enemy) => ({
+            id: enemy.id,
+            type: enemy.type,
+            x: enemy.pos.x,
+            z: enemy.pos.z,
+            hp: enemy.hp,
+            maxHp: enemy.maxHp,
+          })),
+      },
+    });
+  }
+
+  function serializeHero(hero) {
+    return {
+      x: hero.pos.x,
+      z: hero.pos.z,
+      hp: hero.hp,
+      maxHp: hero.maxHp,
+      dirX: hero.dir.x,
+      dirZ: hero.dir.z,
+      moving: hero.moving,
+      attackFlash: hero.attackFlash,
+    };
+  }
+
+  function applyRemoteState(state = {}) {
+    ensureAlly();
+    game.level = clamp(Math.round(state.level || 1), 1, MAX_LEVEL);
+    game.score = Math.max(0, Math.round(state.score || 0));
+    game.castle.hp = clamp(Number(state.castleHp || game.castle.hp), 0, game.castle.maxHp);
+    game.castle.shield = Math.max(0, Number(state.castleShield || 0));
+    game.wave.remoteQueued = Math.max(0, Math.round(state.queued || 0));
+    applyHeroSnapshot(game.hero, state.hero);
+    if (game.ally && state.ally) applyHeroSnapshot(game.ally, state.ally);
+    syncRemoteEnemies(Array.isArray(state.enemies) ? state.enemies : []);
+    updateHeroModel();
+    updateAllyModel();
+    updateCastleModel();
+    updateHud();
+  }
+
+  function applyHeroSnapshot(hero, snapshot = {}) {
+    hero.pos.set(Number(snapshot.x || hero.pos.x), 0, Number(snapshot.z || hero.pos.z));
+    hero.hp = clamp(Number(snapshot.hp || hero.hp), 0, Number(snapshot.maxHp || hero.maxHp));
+    hero.maxHp = Math.max(1, Number(snapshot.maxHp || hero.maxHp));
+    hero.dir.set(Number(snapshot.dirX || hero.dir.x), 0, Number(snapshot.dirZ || hero.dir.z));
+    if (hero.dir.lengthSq() < 0.001) hero.dir.set(1, 0, 0);
+    hero.dir.normalize();
+    hero.moving = Boolean(snapshot.moving);
+    hero.attackFlash = Math.max(0, Number(snapshot.attackFlash || 0));
+  }
+
+  function syncRemoteEnemies(remoteEnemies) {
+    const seen = new Set(remoteEnemies.map((enemy) => Number(enemy.id)));
+    for (const remote of remoteEnemies) {
+      let enemy = game.enemies.find((candidate) => candidate.id === Number(remote.id));
+      if (!enemy && enemyTypes[remote.type]) {
+        enemy = makeEnemy(remote.type, remote);
+        game.enemies.push(enemy);
+      }
+      if (!enemy) continue;
+      enemy.pos.set(Number(remote.x || enemy.pos.x), 0, Number(remote.z || enemy.pos.z));
+      enemy.hp = clamp(Number(remote.hp || enemy.hp), 0, Number(remote.maxHp || enemy.maxHp));
+      enemy.maxHp = Math.max(1, Number(remote.maxHp || enemy.maxHp));
+      enemy.model.position.copy(enemy.pos);
+      updateEnemyHealth(enemy);
+    }
+    for (let i = game.enemies.length - 1; i >= 0; i -= 1) {
+      const enemy = game.enemies[i];
+      if (!seen.has(enemy.id)) {
+        scene.remove(enemy.model);
+        scene.remove(enemy.health.group);
+        game.enemies.splice(i, 1);
+      }
+    }
+  }
+
   function togglePause() {
     if (game.screen === "playing") {
       game.screen = "paused";
@@ -2742,9 +3282,19 @@
   }
 
   function bindInput() {
-    ui.playButton.addEventListener("click", () => startGame({ resume: false }));
-    ui.continueButton.addEventListener("click", () => startGame({ resume: true }));
-    ui.restartButton.addEventListener("click", () => startGame({ resume: false }));
+    ui.playButton.addEventListener("click", () => {
+      closeMultiplayer();
+      startGame({ resume: false });
+    });
+    ui.multiplayerButton.addEventListener("click", connectMultiplayer);
+    ui.continueButton.addEventListener("click", () => {
+      closeMultiplayer();
+      startGame({ resume: true });
+    });
+    ui.restartButton.addEventListener("click", () => {
+      closeMultiplayer();
+      startGame({ resume: false });
+    });
     ui.menuButton.addEventListener("click", showMenu);
     ui.pauseButton.addEventListener("click", togglePause);
     ui.speedButton.addEventListener("click", toggleSpeed);
@@ -2906,13 +3456,47 @@
 
   function frame() {
     const dt = Math.min(0.033, Math.max(0, clock.getDelta()));
-    if (game.screen === "playing") update(Math.min(0.066, dt * game.timeScale));
+    updateMultiplayerCountdown();
+    if (game.screen === "playing") {
+      if (mp.active && !mp.isHost) updateRemoteClient(dt);
+      else update(Math.min(0.066, dt * game.timeScale));
+    }
     else {
       updateEnvironment(dt);
       updateCamera(dt);
     }
     render();
     requestAnimationFrame(frame);
+  }
+
+  function updateRemoteClient(dt) {
+    game.hudTimer += dt;
+    game.messageTimer = Math.max(0, game.messageTimer - dt);
+    if (game.messageTimer <= 0) ui.worldMessage.classList.remove("visible");
+    game.hero.attackFlash = Math.max(0, game.hero.attackFlash - dt);
+    if (game.ally) {
+      game.ally.attackFlash = Math.max(0, game.ally.attackFlash - dt);
+      game.ally.walkTime += game.ally.moving ? dt * 9 : 0;
+    }
+    mp.inputTimer += dt;
+    if (mp.inputTimer >= 0.05) {
+      mp.inputTimer = 0;
+      sendLocalInput();
+    }
+    updateEnvironment(dt);
+    for (const enemy of game.enemies) {
+      enemy.walkTime += dt * enemy.speed * 2.4;
+      animateEnemyModel(enemy, false);
+      updateEnemyHealth(enemy);
+    }
+    updateHeroModel();
+    updateAllyModel();
+    updateCastleModel();
+    updateCamera(dt);
+    if (game.hudTimer >= 0.1) {
+      game.hudTimer = 0;
+      updateHud();
+    }
   }
 
   function formatNumber(value) {

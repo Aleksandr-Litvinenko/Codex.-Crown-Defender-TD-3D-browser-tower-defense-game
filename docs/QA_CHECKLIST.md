@@ -10,6 +10,7 @@ Use this checklist before publishing a new version.
 - Start menu appears.
 - Best score and best level display correctly.
 - Continue button appears only when a saved run exists.
+- Multiplayer button appears on the start screen.
 
 ## Rendering
 
@@ -43,6 +44,17 @@ Use this checklist before publishing a new version.
 - Touching action buttons does not select button text.
 - Enemies take damage.
 - Enemies spawn from the right-side portal.
+
+## Multiplayer
+
+- First player clicking `Мультиплеер` shows waiting status.
+- Second player connecting receives player 2.
+- Both clients receive `match-ready`.
+- Countdown lasts 5 seconds.
+- Match enters `playing` state.
+- Player 2 input is relayed to player 1.
+- Player 1 state snapshots are relayed to player 2.
+- Disconnecting a peer does not crash the remaining client.
 - Castle takes damage when enemies reach it.
 - Hero takes damage when enemies attack the hero.
 

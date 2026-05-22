@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#111924">
     <title>Crown Defender TD</title>
-    <link rel="stylesheet" href="styles.css?v=gameplay-v3">
+    <link rel="stylesheet" href="styles.css?v=multiplayer-v1">
   </head>
   <body>
     <main class="game-shell" id="gameShell">
@@ -119,8 +119,10 @@
           </div>
           <div class="menu-actions">
             <button class="primary-button" id="playButton">Играть</button>
+            <button class="secondary-button" id="multiplayerButton">Мультиплеер</button>
             <button class="secondary-button" id="continueButton">Продолжить</button>
           </div>
+          <p class="multiplayer-status" id="multiplayerStatus"></p>
           <button class="ghost-button" id="resetProgressButton">Сбросить сохранения</button>
         </div>
       </section>
@@ -162,6 +164,6 @@
     </main>
 
     <script src="vendor/three.min.js"></script>
-    <script src="game.js?v=gameplay-v3"></script>
+    <script src="game.js?v=multiplayer-v1"></script>
   </body>
 </html>

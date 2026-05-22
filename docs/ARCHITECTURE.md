@@ -91,6 +91,22 @@ Persisted data:
 - best reached wave;
 - current run snapshot.
 
+### Multiplayer MVP
+
+Multiplayer uses `server/multiplayer-server.mjs`, a dependency-free WebSocket relay.
+
+Flow:
+
+- player 1 clicks `Мультиплеер` and waits in a room;
+- player 2 connects to the same waiting room;
+- the server broadcasts `match-ready` with a shared start timestamp 5 seconds in the future;
+- player 1 becomes the host simulation;
+- player 2 sends input snapshots to player 1;
+- player 1 simulates the shared world, second hero, enemies, waves, and castle damage;
+- player 1 sends state snapshots back to player 2.
+
+This keeps the MVP small while allowing real two-player co-op without moving all game physics to the server. The tradeoff is that player 1 is authoritative for the match.
+
 ### Performance
 
 The current MVP keeps performance predictable by:

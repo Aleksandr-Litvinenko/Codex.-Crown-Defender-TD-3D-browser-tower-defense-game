@@ -2,6 +2,8 @@
 
 The game is a static site. It can be hosted on GitHub Pages, Netlify, Vercel, Cloudflare Pages, or any web server that serves static files.
 
+Multiplayer requires the included Node.js WebSocket relay and an nginx `/ws/` proxy.
+
 ## Local Smoke Test
 
 From the repository root:
@@ -44,13 +46,25 @@ Required file types:
 
 No special server routing is required.
 
+For multiplayer, the server must also run:
+
+```bash
+node server/multiplayer-server.mjs
+```
+
+Recommended production setup:
+
+- run the Node process as a systemd service on `127.0.0.1:8090`;
+- proxy `/ws/` from nginx to `http://127.0.0.1:8090/ws/`;
+- keep the static site root pointed at the current release directory.
+
 ## Cache Busting
 
 The HTML currently references CSS and JS with a query version:
 
 ```html
-styles.css?v=gameplay-v3
-game.js?v=gameplay-v3
+styles.css?v=multiplayer-v1
+game.js?v=multiplayer-v1
 ```
 
 When making visible changes, update the query suffix to force browsers to load the latest files.
@@ -63,6 +77,7 @@ styles.css
 game.js
 vendor/three.min.js
 assets/textures/v2/**
+server/multiplayer-server.mjs
 PRD.md
 README.md
 ASSET_CREDITS.md

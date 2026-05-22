@@ -781,6 +781,19 @@ h2 {
   margin-top: 14px;
 }
 
+.start-panel .menu-actions {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.multiplayer-status {
+  min-height: 20px;
+  margin: 10px 0 0;
+  color: #9fe7ff;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
 .primary-button,
 .secondary-button,
 .ghost-button {
@@ -1000,6 +1013,10 @@ body.paused .controls {
   }
 
   .upgrade-options {
+    grid-template-columns: 1fr;
+  }
+
+  .start-panel .menu-actions {
     grid-template-columns: 1fr;
   }
 

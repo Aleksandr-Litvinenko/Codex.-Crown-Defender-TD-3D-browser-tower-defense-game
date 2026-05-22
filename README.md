@@ -40,6 +40,7 @@ The project is designed to run without a backend. Open it locally, serve it as s
   - boss.
 - Mobile HUD with joystick and ability buttons.
 - Toggleable `x2` game speed.
+- Two-player multiplayer MVP through a lightweight WebSocket relay.
 - Desktop controls for laptop play.
 - Local browser save through `localStorage`.
 - Best score, best wave, crown unlock, crown equipped state, and current run progress are persisted.
@@ -92,11 +93,19 @@ The game is static HTML/CSS/JavaScript. Use any simple local server.
 python3 -m http.server 8010
 ```
 
+For multiplayer testing, also run:
+
+```bash
+node server/multiplayer-server.mjs
+```
+
 Then open:
 
 ```text
 http://localhost:8010/index.html
 ```
+
+Open the game in two browser windows and click `Мультиплеер` in both. The first player waits; when the second player connects, a 5-second countdown starts and the two-player match begins.
 
 The game can also be opened directly as a file in many browsers, but a local server is recommended because browser security rules around local assets vary.
 
@@ -107,6 +116,8 @@ The game can also be opened directly as a file in many browsers, but a local ser
 ├── index.html                 # DOM shell, HUD, overlays, controls
 ├── styles.css                 # responsive HUD and menu styling
 ├── game.js                    # Three.js game logic and rendering
+├── server/
+│   └── multiplayer-server.mjs # dependency-free WebSocket room server
 ├── PRD.md                     # product requirements document
 ├── ASSET_CREDITS.md           # third-party asset and library credits
 ├── LICENSE                    # MIT license for project code
@@ -131,6 +142,7 @@ The repository intentionally excludes source texture archives, extracted raw sou
 - World: procedural Three.js meshes with texture maps from `assets/textures/v2`.
 - UI: HTML/CSS HUD layered over the WebGL canvas.
 - Input: pointer/touch joystick, mobile buttons, and keyboard controls.
+- Multiplayer: first player hosts simulation, second player sends input through WebSocket, host relays state snapshots.
 - Persistence: `localStorage`.
 - Build step: none.
 - Performance budget: capped render pixel ratio, reduced shadow cost, throttled HUD updates, and runtime-only asset pack.
@@ -163,6 +175,7 @@ Then verify the game in a browser:
 - the hero moves with keyboard and joystick;
 - attacks and abilities trigger;
 - x2 speed button toggles the match speed;
+- multiplayer pairs two clients, starts after a 5-second countdown, and enters the match;
 - enemies spawn from the right portal;
 - waves spawn and progress;
 - upgrade choices appear after level-up;
