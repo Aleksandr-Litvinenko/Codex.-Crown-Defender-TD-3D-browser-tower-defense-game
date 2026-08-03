@@ -120,7 +120,10 @@ The game can also be opened directly as a file in many browsers, but a local ser
 │   └── multiplayer-server.mjs # dependency-free WebSocket room server
 ├── PRD.md                     # product requirements document
 ├── ASSET_CREDITS.md           # third-party asset and library credits
+├── COMPARISON.md              # same brief built by Claude Code — what differs
 ├── LICENSE                    # MIT license for project code
+├── tools/
+│   └── check-assets.mjs       # verifies every referenced texture exists
 ├── docs/
 │   ├── ARCHITECTURE.md        # implementation overview
 │   ├── DEPLOYMENT.md          # static hosting and GitHub Pages notes
@@ -133,6 +136,20 @@ The game can also be opened directly as a file in many browsers, but a local ser
 ```
 
 The repository intentionally excludes source texture archives, extracted raw sources, and debug screenshots. Runtime-ready assets are stored in `assets/textures/v2`.
+
+### Checking assets
+
+The game loads 27 textures by name. A renamed or missing file does not throw:
+Three.js quietly renders a black material, and the problem surfaces during play.
+This check catches it first, and also reports files nothing references — worth
+knowing when textures are 7.7 MB of an 8 MB repository.
+
+```bash
+node tools/check-assets.mjs
+node tools/check-assets.mjs --strict   # unreferenced files also fail the run
+```
+
+No dependencies. Exit code `1` means something is missing.
 
 ## Technical Overview
 
