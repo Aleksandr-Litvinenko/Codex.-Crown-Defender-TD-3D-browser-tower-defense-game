@@ -1,49 +1,25 @@
 # Crown Defender TD 3D
 
-`Crown Defender TD 3D` is a static browser game: a 3D MOBA-inspired action tower defense where the player controls a hero, protects a castle, clears 30 waves, earns experience, chooses upgrades, and unlocks a cosmetic crown after victory.
+A static browser game: 3D action tower defense with a MOBA-style camera. You control a hero, hold the castle through 30 waves, pick upgrades on level-up, and unlock a cosmetic crown for winning.
 
-The project is designed to run without a backend. Open it locally, serve it as static files, or publish it through GitHub Pages.
-
+There is no backend. Serve the files locally or publish them on GitHub Pages.
 
 ## Gameplay
 
-- One mode: `TD Defense`.
-- The hero moves freely on a 3D arena with an isometric MOBA-style camera.
-- Creeps spawn in waves and move toward the castle.
-- Creeps enter through a magic portal on the right side of the arena.
-- The player wins after clearing wave 30.
-- The player loses when the castle health reaches zero.
-- Enemies grant experience. Stronger enemies grant more experience.
-- Level-ups present 3 random upgrade choices.
-- A reroll button refreshes upgrade choices and recharges every 3 waves.
-- Victory unlocks a crown that can be equipped in future runs.
+There is one mode, `TD Defense`. The hero moves freely around a 3D arena under an isometric camera. Creeps come in waves through a magic portal on the right and walk toward the castle. Clear wave 30 to win; the run is lost when the castle's health reaches zero.
+
+Enemies give experience, and stronger ones give more. Each level-up offers 3 random upgrades. A reroll button refreshes them and recharges every 3 waves. Winning unlocks a crown you can wear in later runs.
 
 ## Features
 
-- 3D arena with grass, blended stone road, trees, rocks, torches, and dynamic lights.
-- Castle with towers, roofs, windows, and rune details.
-- Hero model with walking animation and weapon switching.
-- Weapon styles:
-  - sword and shield for melee;
-  - bow for ranged attacks;
-  - staff for magic;
-  - chains for medium-range attacks.
-- Elemental ability branch:
-  - meteor;
-  - fire;
-  - ice.
-- Enemy types:
-  - minion;
-  - runner;
-  - brute;
-  - shield;
-  - boss.
-- Mobile HUD with joystick and ability buttons.
-- Toggleable `x2` game speed.
-- Two-player multiplayer MVP through a lightweight WebSocket relay.
-- Desktop controls for laptop play.
-- Local browser save through `localStorage`.
-- Best score, best wave, crown unlock, crown equipped state, and current run progress are persisted.
+- 3D arena with grass, a blended stone road, trees, rocks, torches, and dynamic lights; a castle with towers, roofs, windows, and runes.
+- Hero model with a walk animation and four weapon styles: sword and shield (melee), bow (ranged), staff (magic), and chains (medium range).
+- Elemental abilities: meteor, fire, ice.
+- Enemies: minion, runner, brute, shield, boss.
+- Mobile HUD with a joystick and ability buttons, plus keyboard controls for laptops.
+- `x2` game speed toggle.
+- Two-player multiplayer MVP over a lightweight WebSocket relay.
+- Progress saved in `localStorage`: best score, best wave, crown unlock and equip state, current run.
 
 ## Controls
 
@@ -71,7 +47,7 @@ The project is designed to run without a backend. Open it locally, serve it as s
 
 ## Save System
 
-The MVP save system uses browser `localStorage`.
+Saves use browser `localStorage`.
 
 Storage keys:
 
@@ -107,7 +83,7 @@ http://localhost:8010/index.html
 
 Open the game in two browser windows and click `Мультиплеер` in both. The first player waits; when the second player connects, a 5-second countdown starts and the two-player match begins.
 
-The game can also be opened directly as a file in many browsers, but a local server is recommended because browser security rules around local assets vary.
+Many browsers can also open `index.html` as a file, but a local server is safer: browsers treat local assets differently.
 
 ## Project Structure
 
@@ -168,7 +144,7 @@ More detail is available in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Deployment
 
-This project can be deployed as static files. GitHub Pages is the simplest target.
+The game deploys as static files; GitHub Pages is the simplest option.
 
 1. Push the repository to GitHub.
 2. Open repository settings.
